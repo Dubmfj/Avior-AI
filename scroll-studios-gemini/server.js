@@ -19,7 +19,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Función auxiliar para reintentar si Gemini lanza 503 / sobrecarga
+// Función de reintento automático si Gemini responde 503
 async function generateContentWithRetry(params, retries = 3, delayMs = 1500) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -61,7 +61,7 @@ app.post("/api/chat-web", async (req, res) => {
     }
 
     const response = await generateContentWithRetry({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: message,
       config: { systemInstruction }
     });
@@ -86,7 +86,7 @@ app.post("/api/chat-wsp", async (req, res) => {
     const instructionToUse = systemInstruction || "Eres Avi, la asistente comercial de Scroll Studios.";
 
     const response = await generateContentWithRetry({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: userMessage,
       config: { systemInstruction: instructionToUse }
     });
