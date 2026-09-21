@@ -19,7 +19,24 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// Endpoint Chat Web (Simulador Demo - 5 Interacciones)
+// Función auxiliar para reintentar si Gemini lanza 503 / sobrecarga
+async function generateContentWithRetry(params, retries = 3, delayMs = 1500) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error) {
+      const is503 = error.status === 503 || (error.message && error.message.includes("503"));
+      if (is503 && i < retries - 1) {
+        console.warn(`[Gemini 503] Servidor ocupado. Reintentando en ${delayMs}ms... (${i + 1}/${retries})`);
+        await new Promise((res) => setTimeout(res, delayMs));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
+// Endpoint Chat Web (Simulador Demo)
 app.post("/api/chat-web", async (req, res) => {
   try {
     const { message, nombreNegocio, rubroNegocio } = req.body;
@@ -43,8 +60,8 @@ app.post("/api/chat-web", async (req, res) => {
       `;
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+    const response = await generateContentWithRetry({
+      model: "gemini-2.5-flash",
       contents: message,
       config: { systemInstruction }
     });
@@ -52,13 +69,6 @@ app.post("/api/chat-web", async (req, res) => {
     res.json({ reply: response.text });
   } catch (error) {
     console.error("Error en /api/chat-web:", error);
-    
-    if (error.status === 503 || (error.message && error.message.includes("503"))) {
-      return res.status(503).json({ 
-        reply: "El servidor de la IA está recibiendo muchas peticiones. Por favor, intenta enviar tu mensaje de nuevo en un par de segundos. 🔄" 
-      });
-    }
-
     res.status(500).json({ error: "Servicio no disponible temporalmente." });
   }
 });
@@ -75,8 +85,8 @@ app.post("/api/chat-wsp", async (req, res) => {
 
     const instructionToUse = systemInstruction || "Eres Avi, la asistente comercial de Scroll Studios.";
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await generateContentWithRetry({
+      model: "gemini-2.5-flash",
       contents: userMessage,
       config: { systemInstruction: instructionToUse }
     });
@@ -84,14 +94,7 @@ app.post("/api/chat-wsp", async (req, res) => {
     res.json({ reply: response.text });
   } catch (error) {
     console.error("Error en /api/chat-wsp:", error);
-
-    if (error.status === 503 || (error.message && error.message.includes("503"))) {
-      return res.status(503).json({ 
-        reply: "Servidor ocupado. Intenta enviar tu mensaje de nuevo en unos segundos." 
-      });
-    }
-
-    res.status(500).json({ error: "Error al procesar la solicitud en WhatsApp." });
+    res.status(500).json({ error: "Error al procesar la solicitud en WhatsApp.", details: error.message });
   }
 });
 
