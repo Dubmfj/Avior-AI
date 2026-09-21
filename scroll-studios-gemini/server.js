@@ -76,7 +76,7 @@ app.post("/api/chat-wsp", async (req, res) => {
     const instructionToUse = systemInstruction || "Eres Avi, la asistente comercial de Scroll Studios.";
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: userMessage,
       config: { systemInstruction: instructionToUse }
     });
